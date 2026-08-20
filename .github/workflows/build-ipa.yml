@@ -1,0 +1,52 @@
+name: Build Hermes iOS IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve Swift packages
+        run: |
+          xcodebuild \
+            -project HermesMobile.xcodeproj \
+            -scheme HermesMobile \
+            -resolvePackageDependencies
+
+      - name: Build unsigned archive
+        run: |
+          xcodebuild \
+            -project HermesMobile.xcodeproj \
+            -scheme HermesMobile \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/HermesMobile.xcarchive" \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO
+
+      - name: Create IPA
+        run: |
+          mkdir -p "$RUNNER_TEMP/Payload"
+
+          cp -R \
+            "$RUNNER_TEMP/HermesMobile.xcarchive/Products/Applications/HermesMobile.app" \
+            "$RUNNER_TEMP/Payload/"
+
+          cd "$RUNNER_TEMP"
+
+          zip -r HermesMobile.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: HermesMobile-IPA
+          path: ${{ runner.temp }}/HermesMobile.ipa
